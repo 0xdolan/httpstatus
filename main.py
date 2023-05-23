@@ -11,7 +11,7 @@ from rich.console import Console
 from rich.progress import track
 from rich.table import Table
 
-from src.httpstatus import HttpStatus
+from app.httpstatus import HttpStatus
 
 console = Console()
 
@@ -24,7 +24,7 @@ STATUS_COLORS = {
 }
 
 
-DATA_PATH = os.path.join(os.path.dirname(__file__), "src", "data")
+DATA_PATH = os.path.join(os.path.dirname(__file__), "app", "data")
 http_status_file = os.path.join(DATA_PATH, "httpstatus.json")
 
 
@@ -130,14 +130,79 @@ def get_url(url):
 
 
 def print_usage():
-    rprint("Usage: python main.py <status_code> [--json | --table | --url <url>]")
-    rprint("Options:")
-    rprint("  --help, -h\t\t\tShow this help message and exit")
-    rprint("  --update, -up\t\t\tUpdate HTTP status data")
+    rprint("\nUsage:\npython main.py <status_code> [--json | --table]")
+    rprint("python main.py [--url <url>]")
+    rprint("\nOptions:")
+    rprint(
+        "  --all, -a\t\t\tShow all HTTP status codes in table format. Use [ --json | -j ] to show in JSON format"
+    )
     rprint("  --json, -j\t\t\tShow HTTP status data in JSON format")
     rprint("  --table, -t\t\t\tShow HTTP status data in table format")
     rprint("  --url, -u <url>\t\tShow HTTP status code of the given URL")
+    rprint("  --update, -up\t\t\tUpdate HTTP status data")
+    rprint(
+        "  --help, -h\t\t\tShow this help message and exit. Use [ --table | -t ] to show in table format]"
+    )
     rprint("  --version, -v\t\t\tShow version number and exit")
+    rprint()
+
+
+def print_usage_in_table():
+    table = Table(
+        title="\nUsage",
+        show_lines=True,
+    )
+    table.add_column("Command", justify="left")
+    table.add_column("Description", justify="left")
+    table.add_column("Example", justify="left")
+
+    table.add_row(
+        "python main.py <status_code>",
+        "Show HTTP status code details",
+        "python main.py 200",
+    )
+    table.add_row(
+        "python main.py <status_code> --json",
+        "Show HTTP status code details in JSON format",
+        "python main.py 200 --json",
+    )
+    table.add_row(
+        "python main.py <status_code> --table",
+        "Show HTTP status code details in table format",
+        "python main.py 200 --table",
+    )
+    table.add_row(
+        "python main.py --url <url>",
+        "Show HTTP status code of the given URL",
+        "python main.py --url https://example.com",
+    )
+    table.add_row(
+        "python main.py --all",
+        "Show all HTTP status codes in table format",
+        "python main.py --all",
+    )
+    table.add_row(
+        "python main.py --all --json",
+        "Show all HTTP status codes in JSON format",
+        "python main.py --all --json",
+    )
+    table.add_row(
+        "python main.py --update",
+        "Update HTTP status data",
+        "python main.py --update",
+    )
+    table.add_row(
+        "python main.py --help",
+        "Show this help message and exit. Use [ --table | -t ] to show in table format]",
+        "python main.py --help",
+    )
+    table.add_row(
+        "python main.py --version",
+        "Show version number and exit",
+        "python main.py --version",
+    )
+
+    console.print(table)
 
 
 def main():
@@ -155,8 +220,14 @@ def main():
         sys.exit(1)
 
     if arg1 == "--help" or arg1 == "-h":
-        print_usage()
-        sys.exit(1)
+        if len(sys.argv) > 2:
+            arg2 = sys.argv[2]
+            if arg2 == "--table" or arg2 == "-t":
+                print_usage_in_table()
+                sys.exit(1)
+        else:
+            print_usage()
+            sys.exit(1)
 
     elif arg1 == "--update" or arg1 == "-up":
         update_data()
@@ -164,7 +235,7 @@ def main():
 
     elif arg1 == "--url" or arg1 == "-u":
         if len(sys.argv) < 3:
-            print("Please enter a valid URL.")
+            rprint("Please enter a valid URL.")
             sys.exit(1)
 
         url = sys.argv[2]
@@ -183,8 +254,44 @@ def main():
             else:
                 get_default(get_url(url))
         else:
-            print("Please enter a valid URL.")
+            rprint("Please enter a valid URL.")
         sys.exit(1)
+
+    elif arg1 == "--all" or arg1 == "-a":
+        if len(sys.argv) > 2:
+            arg2 = sys.argv[2]
+            if arg2 == "--json" or arg2 == "-j":
+                all_status = []
+                for status in data:
+                    all_status.append(
+                        {
+                            "status_code": status["status_code"],
+                            "status_title": status["status_title"],
+                            "response_range": status["response_range"],
+                        }
+                    )
+                console.print_json(data=all_status)
+                sys.exit(1)
+        else:
+            table = Table(title="\nHTTP Status Codes", show_lines=True, style="#808080")
+            table.add_column("Status Code", justify="left")
+            table.add_column("Status Title", justify="left")
+            table.add_column("Response Range", justify="left")
+
+            for status in data:
+                status_code = status["status_code"]
+                status_title = status["status_title"]
+                response_range = status["response_range"]
+                for key, value in STATUS_COLORS.items():
+                    if status_code in key:
+                        table.add_row(
+                            f"[{value['hex_code']}]{status_code}[/]",
+                            f"[{value['hex_code']}]{status_title}[/]",
+                            f"[{value['hex_code']}]{response_range}[/]",
+                        )
+
+            console.print(table)
+            sys.exit(1)
 
     status_code = int(arg1)
 
